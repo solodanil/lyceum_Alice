@@ -19,7 +19,7 @@ def index():
     return "Hello!"
 
 
-animals_to_buy = {0: "слон", 1: "кролик"}
+animals_to_buy = ('слон', 'кролик')
 
 
 @app.route("/post", methods=["POST"])
