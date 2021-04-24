@@ -79,8 +79,7 @@ def handle_dialog(req, res):
         'ладно',
         'куплю',
         'покупаю',
-        'хорошо'
-    ]:
+        'хорошо'] or 'куп' in req['request']['original_utterance'].lower():
         # Пользователь согласился, прощаемся.
         res['response']['text'] = 'Слона можно найти на Яндекс.Маркете!'
         res['response']['end_session'] = True
