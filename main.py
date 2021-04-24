@@ -1,13 +1,15 @@
 # импортируем библиотеки
-from flask import Flask, request
 import logging
-import os
 import json
+import os
+
+from flask import Flask, request
 
 app = Flask(__name__)
 
 # Устанавливаем уровень логирования
 logging.basicConfig(level=logging.INFO)
+
 sessionStorage = {}
 
 
@@ -79,15 +81,48 @@ def handle_dialog(req, res):
         'ладно',
         'куплю',
         'покупаю',
-        'хорошо'] or 'куп' in req['request']['original_utterance'].lower():
-        # Пользователь согласился, прощаемся.
+        'хорошо',
+        'я куплю',
+        'я покупаю'
+    ]:
         res['response']['text'] = 'Слона можно найти на Яндекс.Маркете!'
+        function_habbit(req, res)
+
+    res['response']['text'] = \
+        f"Все говорят '{req['request']['original_utterance']}', а ты купи слона!"
+    res['response']['buttons'] = get_suggests(user_id)
+
+
+def function_habbit(req, res):
+    user_id = req['session']['user_id']
+
+    if req['session']['new']:
+        sessionStorage[user_id] = {
+            'suggests': [
+                "Не хочу.",
+                "Не буду.",
+                "Отстань!",
+            ]
+        }
+        res['response']['text'] = 'А теперь купи кролика!'
+        res['response']['buttons'] = get_suggests(user_id)
+        return
+
+    if req['request']['original_utterance'].lower() in [
+        'ладно',
+        'куплю',
+        'покупаю',
+        'хорошо',
+        'я куплю',
+        'я покупаю'
+    ]:
+        res['response']['text'] = 'Кролика можно найти на Яндекс.Маркете!'
         res['response']['end_session'] = True
         return
 
     # Если нет, то убеждаем его купить слона!
     res['response']['text'] = \
-        f"Все говорят '{req['request']['original_utterance']}', а ты купи слона!"
+        f"Все говорят '{req['request']['original_utterance']}', а ты купи кролика!"
     res['response']['buttons'] = get_suggests(user_id)
 
 
@@ -110,7 +145,7 @@ def get_suggests(user_id):
     if len(suggests) < 2:
         suggests.append({
             "title": "Ладно",
-            "url": "https://market.yandex.ru/search?text=слон",
+            "url": "https://market.yandex.ru/search?text=кролик",
             "hide": True
         })
 
