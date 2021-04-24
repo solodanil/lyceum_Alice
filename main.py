@@ -19,55 +19,40 @@ def index():
     return "Hello!"
 
 
-@app.route('/post', methods=['POST'])
-# Функция получает тело запроса и возвращает ответ.
-# Внутри функции доступен request.json - это JSON,
-# который отправила нам Алиса в запросе POST
+animals_to_buy = {0: "слон", 1: "кролик"}
+
+
+@app.route("/post", methods=["POST"])
 def main():
-    logging.info(f'Request: {request.json!r}')
-
-    # Начинаем формировать ответ, согласно документации
-    # мы собираем словарь, который потом при помощи
-    # библиотеки json преобразуем в JSON и отдадим Алисе
+    logging.info(f"Request: {request.json}")
     response = {
-        'session': request.json['session'],
-        'version': request.json['version'],
-        'response': {
-            'end_session': False
-        }
+        "session": request.json["session"],
+        "version": request.json["version"],
+        "response": {"end_session": False},
     }
-
     # Отправляем request.json и response в функцию handle_dialog.
     # Она сформирует оставшиеся поля JSON, которые отвечают
     # непосредственно за ведение диалога
     handle_dialog(request.json, response)
-
-    logging.info(f'Response:  {response!r}')
-
-    # Преобразовываем в JSON и возвращаем
+    logging.info(f"Response: {response}")
     return json.dumps(response)
 
 
 def handle_dialog(req, res):
-    user_id = req['session']['user_id']
-
-    if req['session']['new']:
-        # Это новый пользователь.
-        # Инициализируем сессию и поприветствуем его.
-        # Запишем подсказки, которые мы ему покажем в первый раз
-
+    user_id = req["session"]["user_id"]
+    if req["session"]["new"]:
         sessionStorage[user_id] = {
-            'suggests': [
+            "suggests": [
                 "Не хочу.",
                 "Не буду.",
                 "Отстань!",
-            ]
+            ],
+            "step": 0,
         }
-        # Заполняем текст ответа
-        res['response']['text'] = 'Привет! Купи слона!'
-        # Получим подсказки
-        res['response']['buttons'] = get_suggests(user_id)
+        res["response"]["text"] = f"Привет! Купи {animals_to_buy[0]}а! "
+        res["response"]["buttons"] = get_suggests(user_id)
         return
+
 
     # Сюда дойдем только, если пользователь не новый,
     # и разговор с Алисой уже был начат
@@ -81,73 +66,40 @@ def handle_dialog(req, res):
         'ладно',
         'куплю',
         'покупаю',
-        'хорошо',
-        'я куплю',
-        'я покупаю'
-    ]:
-        res['response']['text'] = 'Слона можно найти на Яндекс.Маркете!'
-        function_habbit(req, res)
-
-    res['response']['text'] = \
-        f"Все говорят '{req['request']['original_utterance']}', а ты купи слона!"
-    res['response']['buttons'] = get_suggests(user_id)
-
-
-def function_habbit(req, res):
-    user_id = req['session']['user_id']
-
-    if req['session']['new']:
-        sessionStorage[user_id] = {
-            'suggests': [
-                "Не хочу.",
-                "Не буду.",
-                "Отстань!",
-            ]
-        }
-        res['response']['text'] = 'А теперь купи кролика!'
-        res['response']['buttons'] = get_suggests(user_id)
+        'хорошо'] or 'куп' in req['request']['original_utterance'].lower():
+        # Пользователь согласился, прощаемся.
+        step = sessionStorage[user_id]["step"]
+        res["response"]["text"] = f"{animals_to_buy[step]}а можно найти на Яндекс.Маркете!"
+        if step:
+            res["response"]["end_session"] = True
+        else:
+            sessionStorage[user_id]["step"] += 1
+            res["response"]["text"] += "\nА теперь купи кролика!"
         return
-
-    if req['request']['original_utterance'].lower() in [
-        'ладно',
-        'куплю',
-        'покупаю',
-        'хорошо',
-        'я куплю',
-        'я покупаю'
-    ]:
-        res['response']['text'] = 'Кролика можно найти на Яндекс.Маркете!'
-        res['response']['end_session'] = True
-        return
-
-    # Если нет, то убеждаем его купить слона!
-    res['response']['text'] = \
-        f"Все говорят '{req['request']['original_utterance']}', а ты купи кролика!"
-    res['response']['buttons'] = get_suggests(user_id)
+    step = sessionStorage[user_id]["step"]
+    res["response"][
+        "text"
+    ] = f"Все говорят '{req['request']['original_utterance']}', а ты купи {animals_to_buy[step]}а!"
+    res["response"]["buttons"] = get_suggests(user_id)
 
 
 # Функция возвращает две подсказки для ответа.
 def get_suggests(user_id):
     session = sessionStorage[user_id]
-
-    # Выбираем две первые подсказки из массива.
-    suggests = [
-        {'title': suggest, 'hide': True}
-        for suggest in session['suggests'][:2]
-    ]
-
-    # Убираем первую подсказку, чтобы подсказки менялись каждый раз.
-    session['suggests'] = session['suggests'][1:]
+    suggests = [{"title": suggest, "hide": True} for suggest in session["suggests"][:2]]
+    session["suggests"] = session["suggests"][1:]
     sessionStorage[user_id] = session
 
     # Если осталась только одна подсказка, предлагаем подсказку
     # со ссылкой на Яндекс.Маркет.
     if len(suggests) < 2:
-        suggests.append({
-            "title": "Ладно",
-            "url": "https://market.yandex.ru/search?text=кролик",
-            "hide": True
-        })
+        suggests.append(
+            {
+                "title": "Ладно",
+                "url": f"https://market.yandex.ru/search?text={animals_to_buy[session['step']]}",
+                "hide": True,
+            }
+        )
 
     return suggests
 
